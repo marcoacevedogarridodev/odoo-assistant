@@ -1,7 +1,6 @@
-// api/ask-gemini.js — variante usando la API gratuita de Google Gemini
+// api/ask-openai.js — variante usando la API de OpenAI en vez de Anthropic
 // Función serverless de Vercel. Corre en el servidor, así que la API key
-// de Gemini nunca queda expuesta al navegador.
-// Conseguí una key gratis en https://aistudio.google.com/apikey (no pide tarjeta)
+// de OpenAI nunca queda expuesta al navegador.
 
 const SYSTEM_PROMPT_PREFIX = `Sos un asistente experto en Odoo 19 que ayuda en tiempo real durante una reunión.
 Vas a recibir fragmentos de una transcripción de audio (puede tener errores de reconocimiento
@@ -23,9 +22,9 @@ export default async function handler(req, res) {
     return;
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: 'Falta configurar GEMINI_API_KEY en Vercel' });
+    res.status(500).json({ error: 'Falta configurar OPENAI_API_KEY en Vercel' });
     return;
   }
 
@@ -40,27 +39,30 @@ export default async function handler(req, res) {
     SYSTEM_PROMPT_PREFIX + (odooContext && odooContext.trim() ? odooContext : '(sin contenido cargado todavía)');
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: systemPrompt }] },
-          contents: [{ role: 'user', parts: [{ text: transcript }] }],
-          generationConfig: { maxOutputTokens: 400 },
-        }),
-      }
-    );
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        max_tokens: 400,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: transcript },
+        ],
+      }),
+    });
 
     if (!response.ok) {
       const errText = await response.text();
-      res.status(response.status).json({ error: 'Error de la API de Gemini', detail: errText });
+      res.status(response.status).json({ error: 'Error de la API de OpenAI', detail: errText });
       return;
     }
 
     const data = await response.json();
-    const answer = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const answer = data.choices?.[0]?.message?.content || '';
 
     res.status(200).json({ answer });
   } catch (err) {

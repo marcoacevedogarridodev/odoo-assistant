@@ -9,16 +9,18 @@
 API key de Anthropic no puede vivir en el navegador (cualquiera la vería con "ver código
 fuente"). Por eso el pedido pasa primero por `api/ask.js`, que corre en el servidor.
 
-## Elegí qué modelo usar (Anthropic u OpenAI)
+## Elegí qué modelo usar (Anthropic, OpenAI o Gemini)
 
-Hay dos archivos en `api/`:
-- `ask.js` → usa Claude (Anthropic)
-- `ask-openai.js` → usa GPT-4o mini (OpenAI)
+Hay tres archivos en `api/`:
+- `ask.js` → usa Claude (Anthropic) — pago por uso
+- `ask-openai.js` → usa GPT-4o mini (OpenAI) — pago por uso
+- `ask-gemini.js` → usa Gemini 2.5 Flash (Google) — **tiene nivel gratuito, no pide tarjeta**
 
-Se puede usar cualquiera de los dos, no ambos a la vez. Para usar OpenAI:
-1. Borrá (o renombrá) `api/ask.js`
-2. Renombrá `api/ask-openai.js` a `api/ask.js`
-3. En el paso de variables de entorno de Vercel usá `OPENAI_API_KEY` en vez de `ANTHROPIC_API_KEY`
+Se usa uno solo a la vez, el que quede nombrado `api/ask.js`. Para usar Gemini (recomendado
+si no querés cargar tarjeta):
+1. Borrá el `api/ask.js` que tengas puesto
+2. Renombrá `api/ask-gemini.js` a `api/ask.js`
+3. En Vercel, la variable de entorno tiene que llamarse `GEMINI_API_KEY`
 
 El frontend (`public/index.html`) no cambia en ningún caso — le habla a `/api/ask` sin importar
 qué modelo hay detrás.
@@ -26,9 +28,9 @@ qué modelo hay detrás.
 ## Pasos para desplegar
 
 1. **Conseguí una API key**
-   - Anthropic: https://console.anthropic.com → API Keys → Create Key
-   - OpenAI: https://platform.openai.com/api-keys → Create new secret key
-   - Ambas son cuentas de pago por uso (no son la misma suscripción que Claude.ai o ChatGPT Plus)
+   - Gemini (gratis, sin tarjeta): https://aistudio.google.com/apikey → Create API key
+   - OpenAI (pago): https://platform.openai.com/api-keys → Create new secret key
+   - Anthropic (pago): https://console.anthropic.com → API Keys → Create Key
 
 2. **Subí esta carpeta a un repo de GitHub** (o arrastrala directo a Vercel si preferís)
 
