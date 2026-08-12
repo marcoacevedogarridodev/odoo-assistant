@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Asistente Odoo 19</title>
+<title>Asistente de Voz</title>
 <style>
   :root {
     --bg: #0f1115;
     --card: #171a21;
-    --accent: #6c8cff;
+    --accent: #ff0000;
     --accent-live: #ff5c5c;
     --text: #e8e9ed;
     --muted: #8b8f9a;
@@ -87,7 +87,7 @@
     border: 1px solid #23262f;
   }
   .entry .q { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
-  .entry .a { font-size: 15px; line-height: 1.4; white-space: pre-wrap; }
+  .entry .a { font-size: 20px; line-height: 1.4; white-space: pre-wrap; }
   .entry .a.loading { color: var(--muted); }
   #liveTranscript {
     font-size: 13px;
@@ -126,20 +126,20 @@
 </style>
 </head>
 <body>
-  <h1>Asistente Odoo 19 — en vivo</h1>
+  <h1>Asistente de Voz</h1>
 
   <details>
-    <summary>Contexto (guía de Odoo 19) — tocar para editar</summary>
-    <textarea id="contextArea" placeholder="Pegá acá el contenido de tu PDF/guía de Odoo 19..."></textarea>
+    <summary>Contexto — tocar para editar</summary>
+    <textarea id="contextArea" placeholder="Pega aca el contenido PDF..."></textarea>
     <button id="saveContextBtn">Guardar contexto</button>
   </details>
 
-  <div id="status">Tocá el micrófono para empezar</div>
+  <div id="status">Toca el microfono para empezar</div>
   <div id="liveTranscript"></div>
   <div id="log"></div>
 
   <div class="manual">
-    <input id="manualInput" type="text" placeholder="O escribí la pregunta acá..." />
+    <input id="manualInput" type="text" placeholder="O escribe la pregunta acá..." />
     <button id="manualBtn">Preguntar</button>
   </div>
 
