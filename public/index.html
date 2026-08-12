@@ -12,6 +12,7 @@
     --accent-live: #ff5c5c;
     --text: #e8e9ed;
     --muted: #8b8f9a;
+    --error: #ff8080;
   }
   * { box-sizing: border-box; }
   body {
@@ -89,6 +90,7 @@
   .entry .q { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
   .entry .a { font-size: 15px; line-height: 1.4; white-space: pre-wrap; }
   .entry .a.loading { color: var(--muted); }
+  .entry .a.error { color: var(--error); font-size: 13px; white-space: pre-wrap; word-break: break-word; }
   #liveTranscript {
     font-size: 13px;
     color: var(--muted);
@@ -162,12 +164,13 @@ const saveContextBtn = document.getElementById('saveContextBtn');
 contextArea.value = localStorage.getItem('odooContext') || '';
 saveContextBtn.onclick = () => {
   localStorage.setItem('odooContext', contextArea.value);
-  statusEl.textContent = 'Contexto guardado ✔';
+  statusEl.textContent = 'Contexto guardado ✔ (' + contextArea.value.length + ' caracteres)';
 };
 
 let listening = false;
 let recognition = null;
 let silenceTimer = null;
+let lastAskedText = ''; // evita repetir la misma pregunta en loop si el reconocimiento la vuelve a emitir
 const QUESTION_HINTS = ['¿', 'qué', 'que', 'cómo', 'como', 'cuál', 'cual', 'dónde', 'donde', 'por qué', 'porque', 'cuándo', 'cuando', 'para qué'];
 
 function looksLikeQuestion(text) {
@@ -201,7 +204,8 @@ function setupRecognition() {
       const finalText = final.trim();
       // Espera breve por si sigue hablando; si la frase parece pregunta, dispara solo.
       silenceTimer = setTimeout(() => {
-        if (looksLikeQuestion(finalText)) {
+        if (looksLikeQuestion(finalText) && finalText !== lastAskedText) {
+          lastAskedText = finalText;
           askClaude(finalText);
           liveEl.textContent = '';
         }
@@ -256,7 +260,7 @@ async function askClaude(question) {
   const answerEl = entry.querySelector('.a');
 
   try {
-    const res = await fetch('/api/ask', {
+    const res = await fetch('/api/ask-gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -264,11 +268,24 @@ async function askClaude(question) {
         odooContext: localStorage.getItem('odooContext') || '',
       }),
     });
-    const data = await res.json();
+
+    let data;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      answerEl.textContent = 'Respuesta no-JSON del servidor (status ' + res.status + ')';
+      answerEl.classList.remove('loading');
+      answerEl.classList.add('error');
+      return;
+    }
 
     if (!res.ok) {
-      answerEl.textContent = 'Error: ' + (data.error || 'desconocido');
+      // Ahora se muestra el detalle real (data.detail) que antes se perdía,
+      // así se ve el motivo exacto que devuelve la API de Gemini.
+      answerEl.textContent = 'Error (' + res.status + '): ' + (data.error || 'desconocido') +
+        (data.detail ? '\n\n' + data.detail : '');
       answerEl.classList.remove('loading');
+      answerEl.classList.add('error');
       return;
     }
 
@@ -279,9 +296,14 @@ async function askClaude(question) {
 
     answerEl.textContent = data.answer;
     answerEl.classList.remove('loading');
+
+    if (data.finishReason === 'MAX_TOKENS') {
+      answerEl.textContent += '\n\n⚠️ Respuesta posiblemente cortada (límite de tokens).';
+    }
   } catch (err) {
     answerEl.textContent = 'Fallo de red: ' + err.message;
     answerEl.classList.remove('loading');
+    answerEl.classList.add('error');
   }
 }
 

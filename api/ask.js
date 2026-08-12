@@ -17,6 +17,11 @@ de voz, cortes o ruido). Tu trabajo:
 --- GUÍA DE ODOO 19 (contexto fijo) ---
 `;
 
+// Modelo a usar. Si te sigue tirando error de "modelo no encontrado" en el
+// detail que ahora sí ves en el front, probá cambiar esto por "gemini-2.0-flash"
+// o "gemini-2.5-flash" (nombres válidos y estables al momento de escribir esto).
+const MODEL = 'gemini-flash-latest';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Método no permitido' });
@@ -36,12 +41,16 @@ export default async function handler(req, res) {
     return;
   }
 
-  const systemPrompt =
-    SYSTEM_PROMPT_PREFIX + (odooContext && odooContext.trim() ? odooContext : '(sin contenido cargado todavía)');
+  const contextText = odooContext && odooContext.trim() ? odooContext : '(sin contenido cargado todavía)';
+  const systemPrompt = SYSTEM_PROMPT_PREFIX + contextText;
+
+  // Log server-side para diagnosticar en Vercel > Deployments > Logs
+  console.log('[ask-gemini] transcript:', transcript.slice(0, 200));
+  console.log('[ask-gemini] contextText length (chars):', contextText.length);
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -49,24 +58,41 @@ export default async function handler(req, res) {
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents: [{ role: 'user', parts: [{ text: transcript }] }],
           generationConfig: {
-            maxOutputTokens: 1024,        // subilo, 400 es muy poco
-            thinkingConfig: { thinkingBudget: 0 }, // desactiva el "pensamiento" interno que te robaba tokens
+            maxOutputTokens: 1024, // antes 400 — subido porque se cortaba
+            thinkingConfig: { thinkingBudget: 0 }, // evita que el "pensamiento" interno consuma el presupuesto de tokens de salida
           },
         }),
       }
     );
 
+    const rawText = await response.text();
+
     if (!response.ok) {
-      const errText = await response.text();
-      res.status(response.status).json({ error: 'Error de la API de Gemini', detail: errText });
+      // Antes esto se perdía: el front solo mostraba "Error de la API de Gemini"
+      // sin el detalle. Ahora sí llega crudo al cliente para poder diagnosticar.
+      console.error('[ask-gemini] Gemini error', response.status, rawText);
+      res.status(response.status).json({
+        error: 'Error de la API de Gemini',
+        detail: rawText,
+      });
       return;
     }
 
-    const data = await response.json();
-    const answer = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const data = JSON.parse(rawText);
+    const candidate = data.candidates?.[0];
+    const answer = candidate?.content?.parts?.[0]?.text || '';
+    const finishReason = candidate?.finishReason;
 
-    res.status(200).json({ answer });
+    if (finishReason === 'MAX_TOKENS') {
+      console.warn('[ask-gemini] Respuesta cortada por límite de tokens');
+    }
+    if (!answer) {
+      console.warn('[ask-gemini] Respuesta vacía. Payload completo:', rawText.slice(0, 500));
+    }
+
+    res.status(200).json({ answer, finishReason });
   } catch (err) {
+    console.error('[ask-gemini] Excepción al llamar a la API', err);
     res.status(500).json({ error: 'Fallo al llamar a la API', detail: String(err) });
   }
 }
