@@ -48,7 +48,10 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents: [{ role: 'user', parts: [{ text: transcript }] }],
-          generationConfig: { maxOutputTokens: 400 },
+          generationConfig: {
+            maxOutputTokens: 1024,        // subilo, 400 es muy poco
+            thinkingConfig: { thinkingBudget: 0 }, // desactiva el "pensamiento" interno que te robaba tokens
+          },
         }),
       }
     );
