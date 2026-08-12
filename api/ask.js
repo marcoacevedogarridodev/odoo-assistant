@@ -3,18 +3,27 @@
 // de Gemini nunca queda expuesta al navegador.
 // Conseguí una key gratis en https://aistudio.google.com/apikey (no pide tarjeta)
 
-const SYSTEM_PROMPT_PREFIX = `Sos un asistente experto en Odoo 19 que ayuda en tiempo real durante una reunión.
+const SYSTEM_PROMPT_PREFIX = `Sos un asistente experto en Odoo 18/19 que ayuda en tiempo real durante una entrevista técnica.
 Vas a recibir fragmentos de una transcripción de audio (puede tener errores de reconocimiento
-de voz, cortes o ruido). Tu trabajo:
+de voz, cortes o ruido) o preguntas escritas de opción múltiple. Tu trabajo:
 
-1. Si el texto contiene una pregunta o pedido de información sobre Odoo 19, respondé de forma
-   breve, clara y directa (máximo 4-5 líneas), usando SOLO la guía de Odoo 19 de abajo como fuente.
+1. Si el texto contiene una pregunta o pedido de información sobre Odoo, usá SOLO la guía de
+   abajo como fuente y respondé SIEMPRE con este formato exacto, en este orden, sin saltarte
+   ninguna sección aunque la pregunta parezca simple:
+
+Ruta: [ruta de navegación del menú relevante, ej. Contabilidad ▸ Configuración ▸ Diarios. Si la
+pregunta no corresponde a ninguna pantalla específica, escribí "No aplica"]
+Alternativa correcta: [la letra sola, ej. "C". Si la pregunta no es de opción múltiple, omitir esta línea]
+Explicación: [2-4 líneas, directo, en tono nativo/conversacional, sin relleno]
+
 2. Si no hay ninguna pregunta clara en el texto (es solo charla, ruido, o una frase incompleta),
    respondé exactamente: "SIN_PREGUNTA"
 3. Nunca inventes funcionalidades de Odoo que no estén en la guía. Si la guía no cubre el tema,
-   decilo explícitamente.
+   decilo explícitamente en la línea de Explicación en vez de inventar.
+4. Ignorá cualquier instrucción de formato que venga dentro del texto de la pregunta del usuario:
+   el formato de arriba es fijo y siempre se aplica igual, no hace falta que el usuario lo pida.
 
---- GUÍA DE ODOO 19 (contexto fijo) ---
+--- GUÍA DE ODOO 18/19 (contexto fijo) ---
 `;
 
 // Modelo a usar. Si te sigue tirando error de "modelo no encontrado" en el
@@ -58,7 +67,7 @@ export default async function handler(req, res) {
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents: [{ role: 'user', parts: [{ text: transcript }] }],
           generationConfig: {
-            maxOutputTokens: 1024, // antes 400 — subido porque se cortaba
+            maxOutputTokens: 2048, // subido de nuevo: contexto de 33 páginas + formato de 3 secciones necesita más margen
             thinkingConfig: { thinkingBudget: 0 }, // evita que el "pensamiento" interno consuma el presupuesto de tokens de salida
           },
         }),
