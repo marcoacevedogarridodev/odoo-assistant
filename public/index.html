@@ -129,9 +129,9 @@
     border-radius: 8px;
     padding: 8px;
     font-size: 13px;
-    min-height: 120px;
+    min-height: 160px;
   }
-  #saveContextBtn, #savePersonalBtn {
+  #savePromptBtn {
     margin-top: 8px;
     background: var(--bg);
     border: none;
@@ -145,16 +145,10 @@
 <body>
   <h1>Asistente de Voz</h1>
 
-  <details>
-    <summary>Contexto técnico (Odoo) — tocar para editar</summary>
-    <textarea id="contextArea" placeholder="Pega aca el contenido PDF de Odoo..."></textarea>
-    <button id="saveContextBtn">Guardar contexto técnico</button>
-  </details>
-
-  <details>
-    <summary>Sobre mí / CV — tocar para editar</summary>
-    <textarea id="personalArea" placeholder="Pega aca tu CV, historia laboral, logros, por qué buscás el puesto, etc."></textarea>
-    <button id="savePersonalBtn">Guardar perfil personal</button>
+  <details open>
+    <summary>Prompt (tu CV) — tocar para editar</summary>
+    <textarea id="promptArea" placeholder="Pegá acá tu curriculum vitae completo: experiencia, cargos, tecnologías, herramientas, logros, idiomas, formación, etc."></textarea>
+    <button id="savePromptBtn">Guardar prompt</button>
   </details>
 
   <div class="lang-row">
@@ -182,34 +176,24 @@ const logEl = document.getElementById('log');
 const micBtn = document.getElementById('micBtn');
 const manualInput = document.getElementById('manualInput');
 const manualBtn = document.getElementById('manualBtn');
-const contextArea = document.getElementById('contextArea');
-const saveContextBtn = document.getElementById('saveContextBtn');
-const personalArea = document.getElementById('personalArea');
-const savePersonalBtn = document.getElementById('savePersonalBtn');
+const promptArea = document.getElementById('promptArea');
+const savePromptBtn = document.getElementById('savePromptBtn');
 const langEsBtn = document.getElementById('langEsBtn');
 const langEnBtn = document.getElementById('langEnBtn');
 
-// El contexto se guarda solo en este dispositivo (localStorage del navegador Android),
-// no en un servidor. Pegalo una vez y queda listo para la próxima.
-contextArea.value = localStorage.getItem('odooContext') || '';
-saveContextBtn.onclick = () => {
-  localStorage.setItem('odooContext', contextArea.value);
-  statusEl.textContent = 'Contexto técnico guardado ✔ (' + contextArea.value.length + ' caracteres)';
-};
-
-// Perfil personal / CV — también solo en este dispositivo. Se usa para
-// preguntas de entrevista sobre trayectoria, motivaciones, historia laboral, etc.
-personalArea.value = localStorage.getItem('personalContext') || '';
-savePersonalBtn.onclick = () => {
-  localStorage.setItem('personalContext', personalArea.value);
-  statusEl.textContent = 'Perfil personal guardado ✔ (' + personalArea.value.length + ' caracteres)';
+// El prompt (tu CV) se guarda solo en este dispositivo (localStorage del
+// navegador), no en un servidor. Pegalo una vez y queda listo para la próxima.
+promptArea.value = localStorage.getItem('userPrompt') || '';
+savePromptBtn.onclick = () => {
+  localStorage.setItem('userPrompt', promptArea.value);
+  statusEl.textContent = 'Prompt guardado ✔ (' + promptArea.value.length + ' caracteres)';
 };
 
 // Idioma del reconocimiento de voz. El Web Speech API no detecta el idioma
 // automáticamente en vivo, así que el usuario elige antes de hablar.
 // La respuesta del modelo, en cambio, sí detecta el idioma de la pregunta
 // y responde en ese idioma sin importar cuál esté seleccionado acá.
-let recogLang = localStorage.getItem('recogLang') || 'es-419';
+let recogLang = localStorage.getItem('recogLang') || 'en-US';
 
 function updateLangButtons() {
   langEsBtn.style.opacity = recogLang === 'es-419' ? '1' : '0.5';
@@ -342,8 +326,7 @@ async function askClaude(question) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         transcript: question,
-        odooContext: localStorage.getItem('odooContext') || '',
-        personalContext: localStorage.getItem('personalContext') || '',
+        prompt: localStorage.getItem('userPrompt') || '',
       }),
     });
 
