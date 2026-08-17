@@ -80,6 +80,21 @@
     padding: 0 14px;
     font-size: 13px;
   }
+  .lang-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .lang-row button {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid #2a2e38;
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 0;
+    font-size: 14px;
+    transition: opacity 0.15s ease;
+  }
   .entry {
     background: var(--card);
     border-radius: 12px;
@@ -116,7 +131,7 @@
     font-size: 13px;
     min-height: 120px;
   }
-  #saveContextBtn {
+  #saveContextBtn, #savePersonalBtn {
     margin-top: 8px;
     background: var(--bg);
     border: none;
@@ -131,17 +146,28 @@
   <h1>Asistente de Voz</h1>
 
   <details>
-    <summary>Contexto — tocar para editar</summary>
-    <textarea id="contextArea" placeholder="Pega aca el contenido PDF..."></textarea>
-    <button id="saveContextBtn">Guardar contexto</button>
+    <summary>Contexto técnico (Odoo) — tocar para editar</summary>
+    <textarea id="contextArea" placeholder="Pega aca el contenido PDF de Odoo..."></textarea>
+    <button id="saveContextBtn">Guardar contexto técnico</button>
   </details>
+
+  <details>
+    <summary>Sobre mí / CV — tocar para editar</summary>
+    <textarea id="personalArea" placeholder="Pega aca tu CV, historia laboral, logros, por qué buscás el puesto, etc."></textarea>
+    <button id="savePersonalBtn">Guardar perfil personal</button>
+  </details>
+
+  <div class="lang-row">
+    <button id="langEsBtn">🎙️ Español</button>
+    <button id="langEnBtn">🎙️ English</button>
+  </div>
 
   <div id="status">Toca el microfono para empezar</div>
   <div id="liveTranscript"></div>
   <div id="log"></div>
 
   <div class="manual">
-    <input id="manualInput" type="text" placeholder="O escribe la pregunta acá..." />
+    <input id="manualInput" type="text" placeholder="O escribe la pregunta acá / Or type here..." />
     <button id="manualBtn">Preguntar</button>
   </div>
 
@@ -158,20 +184,71 @@ const manualInput = document.getElementById('manualInput');
 const manualBtn = document.getElementById('manualBtn');
 const contextArea = document.getElementById('contextArea');
 const saveContextBtn = document.getElementById('saveContextBtn');
+const personalArea = document.getElementById('personalArea');
+const savePersonalBtn = document.getElementById('savePersonalBtn');
+const langEsBtn = document.getElementById('langEsBtn');
+const langEnBtn = document.getElementById('langEnBtn');
 
 // El contexto se guarda solo en este dispositivo (localStorage del navegador Android),
 // no en un servidor. Pegalo una vez y queda listo para la próxima.
 contextArea.value = localStorage.getItem('odooContext') || '';
 saveContextBtn.onclick = () => {
   localStorage.setItem('odooContext', contextArea.value);
-  statusEl.textContent = 'Contexto guardado ✔ (' + contextArea.value.length + ' caracteres)';
+  statusEl.textContent = 'Contexto técnico guardado ✔ (' + contextArea.value.length + ' caracteres)';
 };
+
+// Perfil personal / CV — también solo en este dispositivo. Se usa para
+// preguntas de entrevista sobre trayectoria, motivaciones, historia laboral, etc.
+personalArea.value = localStorage.getItem('personalContext') || '';
+savePersonalBtn.onclick = () => {
+  localStorage.setItem('personalContext', personalArea.value);
+  statusEl.textContent = 'Perfil personal guardado ✔ (' + personalArea.value.length + ' caracteres)';
+};
+
+// Idioma del reconocimiento de voz. El Web Speech API no detecta el idioma
+// automáticamente en vivo, así que el usuario elige antes de hablar.
+// La respuesta del modelo, en cambio, sí detecta el idioma de la pregunta
+// y responde en ese idioma sin importar cuál esté seleccionado acá.
+let recogLang = localStorage.getItem('recogLang') || 'es-419';
+
+function updateLangButtons() {
+  langEsBtn.style.opacity = recogLang === 'es-419' ? '1' : '0.5';
+  langEnBtn.style.opacity = recogLang === 'en-US' ? '1' : '0.5';
+}
+updateLangButtons();
+
+langEsBtn.onclick = () => {
+  recogLang = 'es-419';
+  localStorage.setItem('recogLang', recogLang);
+  updateLangButtons();
+  if (listening) restartRecognition();
+};
+langEnBtn.onclick = () => {
+  recogLang = 'en-US';
+  localStorage.setItem('recogLang', recogLang);
+  updateLangButtons();
+  if (listening) restartRecognition();
+};
+
+function restartRecognition() {
+  if (recognition) { try { recognition.stop(); } catch (e) {} }
+  recognition = setupRecognition();
+  if (recognition) recognition.start();
+}
 
 let listening = false;
 let recognition = null;
 let silenceTimer = null;
 let lastAskedText = ''; // evita repetir la misma pregunta en loop si el reconocimiento la vuelve a emitir
-const QUESTION_HINTS = ['¿', 'qué', 'que', 'cómo', 'como', 'cuál', 'cual', 'dónde', 'donde', 'por qué', 'porque', 'cuándo', 'cuando', 'para qué'];
+
+// Palabras clave en español e inglés: así detecta preguntas sin importar
+// qué idioma tenga puesto el reconocimiento de voz en ese momento.
+const QUESTION_HINTS = [
+  '¿', 'qué', 'que', 'cómo', 'como', 'cuál', 'cual', 'dónde', 'donde',
+  'por qué', 'porque', 'cuándo', 'cuando', 'para qué',
+  'what', 'how', 'which', 'where', 'why', 'when', 'who',
+  'can you', 'could you', 'tell me', 'walk me through', 'explain'
+];
 
 function looksLikeQuestion(text) {
   const t = text.toLowerCase();
@@ -185,7 +262,7 @@ function setupRecognition() {
     return null;
   }
   const rec = new SpeechRecognition();
-  rec.lang = 'es-419';
+  rec.lang = recogLang;
   rec.continuous = true;
   rec.interimResults = true;
 
@@ -234,7 +311,7 @@ micBtn.onclick = () => {
     recognition.start();
     listening = true;
     micBtn.classList.add('listening');
-    statusEl.textContent = 'Escuchando... acercá el celular al parlante';
+    statusEl.textContent = 'Escuchando (' + recogLang + ')... acercá el celular al parlante';
   } else {
     listening = false;
     if (recognition) recognition.stop();
@@ -266,6 +343,7 @@ async function askClaude(question) {
       body: JSON.stringify({
         transcript: question,
         odooContext: localStorage.getItem('odooContext') || '',
+        personalContext: localStorage.getItem('personalContext') || '',
       }),
     });
 
@@ -280,8 +358,7 @@ async function askClaude(question) {
     }
 
     if (!res.ok) {
-      // Ahora se muestra el detalle real (data.detail) que antes se perdía,
-      // así se ve el motivo exacto que devuelve la API de Gemini.
+      // Se muestra el detalle real (data.detail) que devuelve la API de Gemini.
       answerEl.textContent = 'Error (' + res.status + '): ' + (data.error || 'desconocido') +
         (data.detail ? '\n\n' + data.detail : '');
       answerEl.classList.remove('loading');
