@@ -317,7 +317,8 @@ async function askClaude(question) {
   const entry = document.createElement('div');
   entry.className = 'entry';
   entry.innerHTML = `<div class="q">${escapeHtml(question)}</div><div class="a loading">Pensando...</div>`;
-  logEl.prepend(entry);
+  logEl.appendChild(entry); // las respuestas se agregan abajo, en orden cronológico
+  entry.scrollIntoView({ behavior: 'smooth', block: 'end' });
   const answerEl = entry.querySelector('.a');
 
   try {
@@ -360,10 +361,12 @@ async function askClaude(question) {
     if (data.finishReason === 'MAX_TOKENS') {
       answerEl.textContent += '\n\n⚠️ Respuesta posiblemente cortada (límite de tokens).';
     }
+    entry.scrollIntoView({ behavior: 'smooth', block: 'end' });
   } catch (err) {
     answerEl.textContent = 'Fallo de red: ' + err.message;
     answerEl.classList.remove('loading');
     answerEl.classList.add('error');
+    entry.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }
 }
 
